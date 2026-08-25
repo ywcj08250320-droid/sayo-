@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>纱夜，漂浮在空中</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #0f0f23;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            touch-action: none;
+            font-family: Arial, sans-serif;
+        }
+        #game-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100vh;
+            background: #0f0f23;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        #ui,
+        #lives,
+        #shield-indicator,
+        .overlay-box,
+        .overlay-box input,
+        .btn,
+        .btn-secondary {
+            color: white !important;
+        }
+        .overlay-box h1,
+        .overlay-box .best-show,
+        .overlay-box .sub {
+            color: white !important;
+            -webkit-text-fill-color: white !important;
+            background: none !important;
+        }
+        .overlay-box .best-show span {
+            color: #ffd700 !important;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            backdrop-filter: blur(4px);
+        }
+        .overlay.hidden {
+            display: none;
+        }
+        .overlay-box {
+            background: rgba(20, 30, 50, 0.95);
+            padding: 24px 28px;
+            border-radius: 28px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 360px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .overlay-box h1 {
+            font-size: 28px;
+            margin-bottom: 2px;
+            font-weight: bold;
+        }
+        .overlay-box .sub {
+            color: #aaa;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .overlay-box input {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 30px;
+            border: none;
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            outline: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 12px;
+        }
+        .overlay-box input:focus {
+            border-color: #ffd700;
+        }
+        .overlay-box .best-show {
+            font-size: 16px;
+            margin: 6px 0 12px;
+            color: #ccc;
+        }
+        .overlay-box .best-show span {
+            font-weight: bold;
+            color: #ffd700;
+        }
+        .btn {
+            background: #ffd700;
+            color: #1a1a2e !important;
+            border: none;
+            padding: 12px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 50px;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+            cursor: pointer;
+            transition: 0.15s;
+            touch-action: manipulation;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ccc !important;
+            box-shadow: none;
+            font-size: 16px;
+            padding: 10px 16px;
+        }
+        .btn-danger {
+            background: #ff4757;
+            color: white !important;
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
+        }
+        .btn-danger:active {
+            transform: scale(0.95);
+        }
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+        }
+        .level-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 10px 4px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.15s;
+            touch-action: manipulation;
+        }
+        .level-btn.unlocked {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: #ffd700;
+        }
+        .level-btn.current {
+            background: #ffd700;
+            color: #1a1a2e;
+            border-color: #ffd700;
+        }
+        .level-btn.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .level-btn.hidden-level {
+            display: none;
+        }
+        .level-btn.red-level {
+            border-color: #ff4757;
+            color: #ff4757;
+            background: rgba(255, 71, 87, 0.15);
+        }
+        .level-btn.red-level.unlocked {
+            background: rgba(255, 71, 87, 0.25);
+            border-color: #ff4757;
+            color: #ff4757;
+        }
+        .level-btn.endless-btn {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.10);
+            color: #ffd700;
+        }
+        .level-btn.endless-btn.unlocked {
+            background: rgba(255, 215, 0, 0.20);
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+        .level-btn:active:not(.locked) {
+            transform: scale(0.92);
+        }
+        #menu-player-name {
+            color: #ffd700;
+        }
+        #final-score,
+        #final-best {
+            font-size: 38px;
+            font-weight: bold;
+        }
+        #final-score {
+            color: #ffd700;
+        }
+        #final-best {
+            color: #7bed9f;
+        }
+
+        #ui {
+            position: fixed;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            gap: 24px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px 18px;
+            border-radius: 30px;
+            backdrop-filter: blur(4px);
+        }
+        #score {
+            color: white;
+        }
+        #best {
+            color: white;
+            font-size: 15px;
+        }
+        #lives {
+            position: fixed;
+            bottom: 18px;
+            right: 20px;
+            font-size: 28px;
+            color: #ff4757;
+            text-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
+            z-index: 10;
+            pointer-events: none;
+            letter-spacing: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 14px;
+            border-radius: 30px;
+            backdrop-filter: blur(4px);
+        }
+        #shield-indicator {
+            position: fixed;
+            bottom: 72px;
+            right: 20px;
+            color: #00d2d3;
+            font-size: 15px;
+            font-weight: bold;
+            text-shadow: 0 0 16px rgba(0, 210, 211, 0.5);
+            z-index: 10;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px 14px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            display: none;
+        }
+        #target-score {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            z-index: 10;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        #mode-label {
+            position: fixed;
+            top: 60px;
+            right: 16px;
+            color: #ffd700;
+            font-size: 14px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 12px;
+            border-radius: 16px;
+            backdrop-filter: blur(4px);
+            z-index: 10;
+            pointer-events: none;
+            display: none;
+        }
+        #rotate-hint {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #0f0f23;
+            color: white;
+            font-size: 22px;
+            justify-content: center;
+            align-items: center;
+            z-index: 99;
+            flex-direction: column;
+            gap: 14px;
+            text-align: center;
+            padding: 30px;
+            display: none;
+        }
+        @media (orientation: portrait) {
+            #rotate-hint {
+                display: flex !important;
+            }
+        }
+        @media (orientation: landscape) {
+            #rotate-hint {
+                display: none !important;
+            }
+        }
+        #rotate-hint span {
+            font-size: 56px;
+        }
+
+        .victory-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 8px auto;
+            border: 4px solid #ffd700;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
+        }
+        .victory-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .victory-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 8px 0;
+            color: #ffd700;
+        }
+        .congrats-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffd700;
+            margin: 4px 0;
+        }
+        .level-complete-info {
+            font-size: 16px;
+            color: #aaa;
+            margin: 4px 0 12px;
+        }
+        .unlock-notice {
+            color: #ffd700;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 6px 0 10px;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .endless-best {
+            font-size: 20px;
+            color: #ffd700;
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="rotate-hint">
+        <span>📱</span>
+        请将手机横屏游玩
+        <div style="font-size:16px;color:#888;">Rotate your device to landscape</div>
+    </div>
+
+    <!-- ===== 取名界面 ===== -->
+    <div id="name-overlay" class="overlay">
+        <div class="overlay-box">
+            <h1>吉他手大冒险！</h1>
+            <div class="sub">Sayo被催眠了，收集薯条唤醒她！</div>
+            <input id="player-id-input" type="text" placeholder="输入你的ID..." maxlength="12" autofocus>
+            <button class="btn" id="name-confirm-btn">开始旅程</button>
+        </div>
+    </div>
+
+    <!-- ===== 菜单/关卡选择界面 ===== -->
+    <div id="menu-overlay" class="overlay hidden">
+        <div class="overlay-box">
+            <h1>吉他手大冒险！</h1>
+            <div style="font-size:16px;margin:2px 0 4px;">👤 <span id="menu-player-name">—</span></div>
+            <div class="best-show">🏆 最高分 <span id="menu-best-score">0</span></div>
+            <div class="best-show" style="font-size:14px;color:#aaa;margin-top:-6px;">📖 进度 <span id="menu-progress">0/5</span></div>
+
+            <div class="level-grid" id="level-grid">
+                <!-- JS 动态生成 -->
+            </div>
+
+            <button class="btn btn-secondary" id="menu-change-name-btn" style="margin-top:4px;">切换 ID</button>
+        </div>
+    </div>
+
+    <!-- ===== 游戏内UI ===== -->
+    <div id="ui">
+        <span>⭐ <span id="score">0</span></span>
+        <span id="best">🏆 <span id="bestScore">0</span></span>
+    </div>
+    <div id="target-score">🎯 目标: <span id="targetScoreNum">0</span></div>
+    <div id="mode-label">♾️ 无尽模式</div>
+    <div id="lives">❤️❤️❤️</div>
+    <div id="shield-indicator">🛡️ 无敌 <span id="shield-time">0</span>s</div>
+
+    <div id="game-wrapper">
+        <canvas id="game"></canvas>
+    </div>
+
+    <!-- ===== 游戏结束/胜利/失败界面 ===== -->
+    <div id="gameover-overlay" class="overlay hidden">
+        <div class="overlay-box" id="gameover-box">
+            <!-- 动态内容由 JS 填充 -->
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  1. 关卡配置（分数：100,150,200,250,300,320）
+        // ============================================================
+        const LEVELS = [
+            { level: 1, target: 100, label: '第1关', desc: '初醒' },
+            { level: 2, target: 150, label: '第2关', desc: '挣扎' },
+            { level: 3, target: 200, label: '第3关', desc: '回响' },
+            { level: 4, target: 250, label: '第4关', desc: '共鸣' },
+            { level: 5, target: 300, label: '第5关', desc: '觉醒前夜' },
+            { level: 6, target: 320, label: '直面', desc: '直面', isFinal: true, isHidden: true }
+        ];
+        const TOTAL_LEVELS = LEVELS.length;
+        const NORMAL_LEVELS = 5; // 前5关为普通关，第6关隐藏
+
+        const LEVEL_COLORS = [
+            ['#0b2b4a', '#1b4a6b'],
+            ['#1a3a2a', '#2d5a3d'],
+            ['#3a1a3a', '#5a2d4a'],
+            ['#3a2a1a', '#5a4a2d'],
+            ['#1a2a4a', '#2d4a6b'],
+            ['#1a0a0a', '#3a1a1a']
+        ];
+
+        // ============================================================
+        //  2. 画布 & DOM
+        // ============================================================
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        const W = () => canvas.width;
+        const H = () => canvas.height;
+
+        const scoreSpan = document.getElementById('score');
+        const bestSpan = document.getElementById('bestScore');
+        const livesSpan = document.getElementById('lives');
+        const shieldIndicator = document.getElementById('shield-indicator');
+        const shieldTimeSpan = document.getElementById('shield-time');
+        const targetScoreSpan = document.getElementById('targetScoreNum');
+        const targetDiv = document.getElementById('target-score');
+        const modeLabel = document.getElementById('mode-label');
+
+        const nameOverlay = document.getElementById('name-overlay');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const gameoverOverlay = document.getElementById('gameover-overlay');
+        const gameoverBox = document.getElementById('gameover-box');
+        const playerIdInput = document.getElementById('player-id-input');
+        const nameConfirmBtn = document.getElementById('name-confirm-btn');
+        const menuChangeNameBtn = document.getElementById('menu-change-name-btn');
+        const menuPlayerName = document.getElementById('menu-player-name');
+        const menuBestScore = document.getElementById('menu-best-score');
+        const menuProgress = document.getElementById('menu-progress');
+        const levelGrid = document.getElementById('level-grid');
+
+        // ============================================================
+        //  3. 玩家数据管理
+        // ============================================================
+        let playerId = '';
+        let bestScore = 0;
+        let unlockedLevel = 1;
+        let endlessBest = 0;
+        let endlessUnlocked = false;
+
+        function getStorageKey(id, suffix) {
+            return 'sayo_' + id + '_' + suffix;
+        }
+
+        function loadPlayerData(id) {
+            if (!id) return { best: 0, unlocked: 1, endless: 0, endlessUnlocked: false };
+            const best = parseInt(localStorage.getItem(getStorageKey(id, 'best'))) || 0;
+            const unlocked = parseInt(localStorage.getItem(getStorageKey(id, 'unlock'))) || 1;
+            const endless = parseInt(localStorage.getItem(getStorageKey(id, 'endless'))) || 0;
+            const endlessUnlocked = localStorage.getItem(getStorageKey(id, 'endlessUnlock')) === 'true';
+            return { best, unlocked, endless, endlessUnlocked };
+        }
+
+        function savePlayerData(id, best, unlocked, endless, endlessUnlocked) {
+            if (!id) return;
+            const old = loadPlayerData(id);
+            const newBest = Math.max(old.best, best || 0);
+            const newUnlock = Math.max(old.unlocked, unlocked || 1);
+            const newEndless = Math.max(old.endless, endless || 0);
+            const newEndlessUnlock = endlessUnlocked !== undefined ? endlessUnlocked : old.endlessUnlocked;
+            localStorage.setItem(getStorageKey(id, 'best'), newBest);
+            localStorage.setItem(getStorageKey(id, 'unlock'), newUnlock);
+            localStorage.setItem(getStorageKey(id, 'endless'), newEndless);
+            localStorage.setItem(getStorageKey(id, 'endlessUnlock'), String(newEndlessUnlock));
+        }
+
+        function getBestForCurrent() {
+            return loadPlayerData(playerId).best;
+        }
+
+        function getUnlockedForCurrent() {
+            return loadPlayerData(playerId).unlocked;
+        }
+
+        function getEndlessBest() {
+            return loadPlayerData(playerId).endless;
+        }
+
+        function getEndlessUnlocked() {
+            return loadPlayerData(playerId).endlessUnlocked;
+        }
+
+        // ============================================================
+        //  4. 图片加载
+        // ============================================================
+        const images = {
+            bird: new Image(),
+            fries: new Image(),
+            bread: new Image(),
+            guitar: new Image()
+        };
+        images.bird.src = 'bird.png';
+        images.fries.src = 'fries.png';
+        images.bread.src = 'bread.png';
+        images.guitar.src = 'guitar.png';
+
+        function isImageLoaded(img) {
+            return img.naturalWidth > 0 && img.naturalHeight > 0;
+        }
+
+        // ============================================================
+        //  5. 游戏状态
+        // ============================================================
+        let gameRunning = false;
+        let gameOver = false;
+        let gameWin = false;
+        let isEndlessMode = false;
+        let score = 0;
+        let lives = 3;
+        let shieldActive = false;
+        let shieldTimer = 0;
+        const SHIELD_DURATION = 3;
+        let currentLevel = 1;
+        let targetScore = 100;
+        let isFinalLevel = false;
+
+        let birdRadius = 18;
+        let obstacleW = 40;
+        let gap = 150;
+        let speed = 2.6;
+        let spawnInterval = 80;
+        let bgColors = ['#0b2b4a', '#1b4a6b'];
+
+        function getDynamicSizes() {
+            const base = Math.min(W(), H());
+            birdRadius = Math.max(14, Math.min(22, base / 28));
+            obstacleW = Math.max(30, Math.min(50, base / 16));
+            gap = Math.max(120, Math.min(160, base / 5.2));
+            speed = Math.max(1.8, Math.min(3.0, base / 160));
+            spawnInterval = Math.max(60, Math.min(100, base / 8));
+        }
+
+        const bird = {
+            x: 0,
+            y: 0,
+            radius: 18,
+            vy: 0,
+            gravity: 0.25,
+            lift: -5.0,
+            rotation: 0
+        };
+        let obstacles = [];
+        let items = [];
+        let frameCounter = 0;
+
+        // ============================================================
+        //  6. UI 更新
+        // ============================================================
+        function updateLivesDisplay() {
+            livesSpan.textContent = '❤️'.repeat(lives) + '🖤'.repeat(3 - lives);
+        }
+
+        function updateShieldDisplay() {
+            if (shieldActive && shieldTimer > 0) {
+                shieldIndicator.style.display = 'block';
+                shieldTimeSpan.textContent = Math.ceil(shieldTimer);
+            } else {
+                shieldIndicator.style.display = 'none';
+            }
+        }
+
+        function updateUI() {
+            scoreSpan.textContent = score;
+            bestSpan.textContent = getBestForCurrent();
+            targetScoreSpan.textContent = isEndlessMode ? '∞' : targetScore;
+        }
+
+        function updateLevelColors() {
+            const idx = Math.min(currentLevel - 1, LEVEL_COLORS.length - 1);
+            bgColors = LEVEL_COLORS[idx] || ['#0b2b4a', '#1b4a6b'];
+        }
+
+        // ============================================================
+        //  7. 游戏重置 & 关卡加载
+        // ============================================================
+        function loadLevel(level) {
+            const cfg = LEVELS[level - 1];
+            if (!cfg) return;
+            currentLevel = level;
+            targetScore = cfg.target;
+            isFinalLevel = cfg.isFinal || false;
+            isEndlessMode = false;
+            modeLabel.style.display = 'none';
+            updateLevelColors();
+
+            gameOver = false;
+            gameWin = false;
+            gameRunning = true;
+            score = 0;
+            lives = 3;
+            shieldActive = false;
+            shieldTimer = 0;
+            getDynamicSizes();
+            bird.radius = birdRadius;
+            bird.x = W() * 0.2;
+            bird.y = H() * 0.5;
+            bird.vy = 0;
+            bird.rotation = 0;
+            obstacles = [];
+            items = [];
+            frameCounter = 0;
+
+            targetDiv.style.display = 'block';
+            updateLivesDisplay();
+            updateShieldDisplay();
+            updateUI();
+            gameoverOverlay.classList.add('hidden');
+        }
+
+        function loadEndlessMode() {
+            isEndlessMode = true;
+            isFinalLevel = false;
+            currentLevel = 0;
+            targetScore = Infinity;
+            modeLabel.style.display = 'block';
+
+            gameOver = false;
+            gameWin = false;
+            gameRunning = true;
+            score = 0;
+            lives = 3;
+            shieldActive = false;
+            shieldTimer = 0;
+            getDynamicSizes();
+            bird.radius = birdRadius;
+            bird.x = W() * 0.2;
+            bird.y = H() * 0.5;
+            bird.vy = 0;
+            bird.rotation = 0;
+            obstacles = [];
+            items = [];
+            frameCounter = 0;
+
+            bgColors = ['#0f3460', '#16213e'];
+            targetDiv.style.display = 'none';
+            updateLivesDisplay();
+            updateShieldDisplay();
+            updateUI();
+            gameoverOverlay.classList.add('hidden');
+        }
+
+        function resetGameState() {
+            if (isEndlessMode) {
+                loadEndlessMode();
+            } else {
+                loadLevel(currentLevel);
+            }
+        }
+
+        // ============================================================
+        //  8. 生成逻辑
+        // ============================================================
+        function spawnObstacle() {
+            const h = H();
+            const w = W();
+            const maxBlockHeight = h * 0.32;
+            const centerMin = h * 0.18;
+            const centerMax = h * 0.82;
+            const centerY = Math.random() * (centerMax - centerMin) + centerMin;
+            const halfGap = gap / 2;
+            let topHeight = Math.min(centerY - halfGap, maxBlockHeight);
+            let bottomY = Math.max(centerY + halfGap, h - maxBlockHeight);
+            topHeight = Math.max(6, Math.min(topHeight, maxBlockHeight));
+            bottomY = Math.min(h - 6, Math.max(bottomY, h - maxBlockHeight));
+
+            obstacles.push({
+                x: w,
+                topHeight: topHeight,
+                bottomY: bottomY,
+                scored: false
+            });
+
+            // 第6关：只显示薯条，不显示面包和吉他
+            if (isFinalLevel && !isEndlessMode) {
+                if (Math.random() < 0.30) {
+                    const itemY = centerY + (Math.random() - 0.5) * (gap * 0.45);
+                    items.push({
+                        x: w + 20,
+                        y: Math.min(h - 20, Math.max(20, itemY)),
+                        type: 'fry',
+                        size: 22,
+                        emoji: '🍟',
+                        collected: false
+                    });
+                }
+                return;
+            }
+
+            // 普通关卡 + 无尽模式：正常生成所有道具
+            const rand = Math.random();
+            let itemType, size, emoji;
+            if (rand < 0.35) { itemType = 'fry';
+                size = 22;
+                emoji = '🍟'; } else if (rand < 0.55) { itemType = 'bread';
+                size = 24;
+                emoji = '🍞'; } else if (rand < 0.70) { itemType = 'guitar';
+                size = 26;
+                emoji = '🎸'; } else return;
+
+            const itemY = centerY + (Math.random() - 0.5) * (gap * 0.45);
+            items.push({
+                x: w + 20,
+                y: Math.min(h - 20, Math.max(20, itemY)),
+                type: itemType,
+                size: size,
+                emoji: emoji,
+                collected: false
+            });
+        }
+
+        // ============================================================
+        //  9. 碰撞 & 更新
+        // ============================================================
+        function circleRectCollision(cx, cy, cr, rx, ry, rw, rh) {
+            const nearX = Math.max(rx, Math.min(cx, rx + rw));
+            const nearY = Math.max(ry, Math.min(cy, ry + rh));
+            const dx = cx - nearX;
+            const dy = cy - nearY;
+            return (dx * dx + dy * dy) < (cr * cr);
+        }
+
+        function update() {
+            if (!gameRunning || gameOver || gameWin) return;
+            const h = H();
+
+            bird.vy += bird.gravity;
+            if (bird.vy > 10) bird.vy = 10;
+            bird.y += bird.vy;
+            bird.rotation = Math.min(Math.max(bird.vy * 0.025, -0.5), 0.6);
+
+            if (bird.y - bird.radius < 0 || bird.y + bird.radius > h) {
+                if (shieldActive) {
+                    shieldActive = false;
+                    shieldTimer = 0;
+                    updateShieldDisplay();
+                    bird.y = Math.max(bird.radius, Math.min(h - bird.radius, bird.y));
+                } else {
+                    takeDamage();
+                }
+                return;
+            }
+
+            if (shieldActive) {
+                shieldTimer -= 1 / 60;
+                if (shieldTimer <= 0) { shieldActive = false;
+                    shieldTimer = 0; }
+                updateShieldDisplay();
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const ob = obstacles[i];
+                ob.x -= speed;
+                const hitTop = circleRectCollision(bird.x, bird.y, bird.radius - 2,
+                    ob.x, 0, obstacleW, ob.topHeight);
+                const hitBottom = circleRectCollision(bird.x, bird.y, bird.radius - 2,
+                    ob.x, ob.bottomY, obstacleW, H() - ob.bottomY);
+                if (hitTop || hitBottom) {
+                    if (shieldActive) {
+                        shieldActive = false;
+                        shieldTimer = 0;
+                        updateShieldDisplay();
+                    } else {
+                        takeDamage();
+                        return;
+                    }
+                }
+                if (!ob.scored && ob.x + obstacleW < bird.x - bird.radius) {
+                    ob.scored = true;
+                    score += 5;
+                    updateUI();
+                }
+                if (ob.x + obstacleW < 0) obstacles.splice(i, 1);
+            }
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                item.x -= speed;
+                const dx = bird.x - item.x;
+                const dy = bird.y - item.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < bird.radius + item.size / 2 && !item.collected) {
+                    item.collected = true;
+                    if (item.type === 'fry') {
+                        score += 5;
+                        updateUI();
+                    } else if (item.type === 'bread') {
+                        if (lives < 3) { lives++;
+                            updateLivesDisplay(); } else { score += 5;
+                            updateUI(); }
+                    } else if (item.type === 'guitar') {
+                        shieldActive = true;
+                        shieldTimer = SHIELD_DURATION;
+                        updateShieldDisplay();
+                    }
+                }
+                if (item.x + item.size / 2 < 0 || item.collected) {
+                    items.splice(i, 1);
+                }
+            }
+
+            frameCounter++;
+            if (frameCounter >= spawnInterval) {
+                frameCounter = 0;
+                spawnObstacle();
+            }
+
+            if (!isEndlessMode && score >= targetScore) {
+                levelComplete();
+            }
+        }
+
+        function takeDamage() {
+            lives--;
+            updateLivesDisplay();
+            if (lives <= 0) {
+                endGame(false);
+            } else {
+                bird.y = H() * 0.5;
+                bird.vy = 0;
+                shieldActive = true;
+                shieldTimer = 0.5;
+                updateShieldDisplay();
+            }
+        }
+
+        function levelComplete() {
+            if (gameWin || gameOver) return;
+
+            // 第5关通关：只显示"回到菜单"，解锁第6关
+            if (currentLevel === NORMAL_LEVELS) {
+                const newUnlock = Math.min(currentLevel + 1, TOTAL_LEVELS);
+                savePlayerData(playerId, getBestForCurrent(), newUnlock, undefined, false);
+
+                gameRunning = false;
+                gameoverBox.innerHTML = `
+                        <div class="congrats-title">🎉 恭喜通关！</div>
+                        <div class="level-complete-info">第 ${currentLevel} 关完成</div>
+                        <div style="font-size:14px;color:#aaa;margin-bottom:12px;">得分: ${score}</div>
+                        <button class="btn btn-secondary" id="level-menu-btn">🏠 回到菜单</button>
+                    `;
+                gameoverOverlay.classList.remove('hidden');
+                targetDiv.style.display = 'none';
+
+                document.getElementById('level-menu-btn').addEventListener('click', goToMenu);
+                return;
+            }
+
+            // 第6关通关 → 最终胜利 + 解锁无尽模式
+            if (currentLevel === TOTAL_LEVELS) {
+                savePlayerData(playerId, getBestForCurrent(), TOTAL_LEVELS, undefined, true);
+                endGame(true);
+                return;
+            }
+
+            // 其他关卡（1-4关）：正常显示"进入下一关"
+            const newUnlock = Math.min(currentLevel + 1, TOTAL_LEVELS);
+            savePlayerData(playerId, getBestForCurrent(), newUnlock, undefined, false);
+
+            gameRunning = false;
+            gameoverBox.innerHTML = `
+                    <div class="congrats-title">🎉 恭喜通关！</div>
+                    <div class="level-complete-info">第 ${currentLevel} 关完成</div>
+                    <div style="font-size:14px;color:#aaa;margin-bottom:12px;">得分: ${score}</div>
+                    <button class="btn" id="next-level-btn">➡️ 进入下一关</button>
+                    <button class="btn btn-secondary" id="level-menu-btn">🏠 回到菜单</button>
+                `;
+            gameoverOverlay.classList.remove('hidden');
+            targetDiv.style.display = 'none';
+
+            document.getElementById('next-level-btn').addEventListener('click', () => {
+                gameoverOverlay.classList.add('hidden');
+                loadLevel(currentLevel + 1);
+            });
+            document.getElementById('level-menu-btn').addEventListener('click', goToMenu);
+        }
+
+        // ============================================================
+        //  10. 绘制
+        // ============================================================
+        function drawItem(img, emoji, x, y, size, color) {
+            if (isImageLoaded(img)) {
+                ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+            } else {
+                ctx.font = size + 'px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                if (color) { ctx.shadowColor = color;
+                    ctx.shadowBlur = 20; }
+                ctx.fillText(emoji, x, y);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function draw() {
+            const w = W(),
+                h = H();
+            const grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, bgColors[0]);
+            grad.addColorStop(1, bgColors[1]);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            for (const item of items) {
+                if (item.collected) continue;
+                if (item.type === 'fry') drawItem(images.fries, '🍟', item.x, item.y, item.size, '#ffd700');
+                else if (item.type === 'bread') drawItem(images.bread, '🍞', item.x, item.y, item.size, '#ff6b6b');
+                else if (item.type === 'guitar') drawItem(images.guitar, '🎸', item.x, item.y, item.size, '#00d2d3');
+            }
+
+            ctx.shadowColor = 'rgba(255,255,255,0.15)';
+            ctx.shadowBlur = 8;
+            for (const ob of obstacles) {
+                ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                ctx.fillRect(ob.x, 0, obstacleW, ob.topHeight);
+                ctx.fillRect(ob.x, ob.bottomY, obstacleW, h - ob.bottomY);
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.fillRect(ob.x, 0, 4, ob.topHeight);
+                ctx.fillRect(ob.x, ob.bottomY, 4, h - ob.bottomY);
+            }
+            ctx.shadowBlur = 0;
+
+            ctx.save();
+            ctx.translate(bird.x, bird.y);
+            ctx.rotate(bird.rotation);
+            if (shieldActive) {
+                ctx.beginPath();
+                ctx.arc(0, 0, bird.radius + 12, 0, Math.PI * 2);
+                const grad2 = ctx.createRadialGradient(0, 0, bird.radius, 0, 0, bird.radius + 12);
+                grad2.addColorStop(0, 'rgba(0,210,211,0)');
+                grad2.addColorStop(0.7, 'rgba(0,210,211,0.15)');
+                grad2.addColorStop(1, 'rgba(0,210,211,0.5)');
+                ctx.fillStyle = grad2;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0,210,211,0.4)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            if (bird.vy < -2) {
+                ctx.fillStyle = 'rgba(255,200,50,0.35)';
+                ctx.beginPath();
+                ctx.moveTo(-bird.radius * 1.3, 4);
+                ctx.lineTo(-bird.radius * 2.0, 0);
+                ctx.lineTo(-bird.radius * 1.3, -4);
+                ctx.fill();
+            }
+            if (isImageLoaded(images.bird)) {
+                ctx.shadowColor = 'rgba(0,150,255,0.35)';
+                ctx.shadowBlur = 25;
+                const size = bird.radius * 2 + 4;
+                ctx.drawImage(images.bird, -size / 2, -size / 2, size, size);
+                ctx.shadowBlur = 0;
+            } else {
+                ctx.font = (bird.radius * 2.2) + 'px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,150,255,0.5)';
+                ctx.shadowBlur = 30;
+                ctx.fillText('🐦', 0, 0);
+                ctx.shadowBlur = 0;
+            }
+            ctx.restore();
+
+            if (gameOver || gameWin) {
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(0, 0, w, h);
+            }
+        }
+
+        // ============================================================
+        //  11. 结束画面
+        // ============================================================
+        function endGame(win) {
+            if (gameOver || gameWin) return;
+            gameRunning = false;
+            if (win && !isEndlessMode) {
+                gameWin = true;
+                // 第6关通关，解锁无尽模式
+                savePlayerData(playerId, score, TOTAL_LEVELS, undefined, true);
+
+                gameoverBox.innerHTML = `
+                        <div class="victory-photo">
+                            <img src="sayo.png" alt="Sayo">
+                        </div>
+                        <div class="victory-title">🎉 恭喜你，成功唤醒了 Sayo！</div>
+                        <div class="unlock-notice">✨ 无尽模式已解锁！</div>
+                        <div style="font-size:14px;color:#aaa;margin:4px 0 8px;">
+                            👤 ${playerId} | 最终得分: ${score}
+                        </div>
+                        <button class="btn" id="endless-unlock-btn">♾️ 进入无尽模式</button>
+                        <button class="btn btn-secondary" id="victory-menu-btn">🏠 回到菜单</button>
+                    `;
+                gameoverOverlay.classList.remove('hidden');
+                targetDiv.style.display = 'none';
+
+                document.getElementById('endless-unlock-btn').addEventListener('click', () => {
+                    gameoverOverlay.classList.add('hidden');
+                    loadEndlessMode();
+                });
+                document.getElementById('victory-menu-btn').addEventListener('click', goToMenu);
+
+            } else if (isEndlessMode) {
+                const best = getEndlessBest();
+                if (score > best) {
+                    savePlayerData(playerId, getBestForCurrent(), getUnlockedForCurrent(), score, true);
+                }
+                const newBest = getEndlessBest();
+                gameoverBox.innerHTML = `
+                        <h2 style="font-size:26px;color:#ff6b6b;">💀 无尽模式结束</h2>
+                        <div style="font-size:15px;color:#aaa;margin-top:2px;">👤 ${playerId}</div>
+                        <div class="endless-best">🏆 无尽最高: ${newBest}</div>
+                        <div style="font-size:14px;color:#aaa;margin:4px 0 12px;">本次得分: ${score}</div>
+                        <button class="btn" id="endless-retry-btn">🔄 再来一次</button>
+                        <button class="btn btn-secondary" id="endless-menu-btn">🏠 回到菜单</button>
+                    `;
+                gameoverOverlay.classList.remove('hidden');
+
+                document.getElementById('endless-retry-btn').addEventListener('click', () => {
+                    gameoverOverlay.classList.add('hidden');
+                    loadEndlessMode();
+                });
+                document.getElementById('endless-menu-btn').addEventListener('click', goToMenu);
+
+            } else {
+                const best = getBestForCurrent();
+                gameoverBox.innerHTML = `
+                        <h2 style="font-size:26px;color:#ff6b6b;">💀 游戏结束</h2>
+                        <div style="font-size:15px;color:#aaa;margin-top:2px;">👤 ${playerId}</div>
+                        <div class="final-label" style="font-size:15px;color:#aaa;margin-top:10px;">得分</div>
+                        <div id="final-score">${score}</div>
+                        <div class="final-best" style="font-size:17px;color:#7bed9f;margin:4px 0 14px;">🏆 最高 <span style="color:#ffd700;">${best}</span></div>
+                        <button class="btn" id="restart-level-btn">🔄 重试本关</button>
+                        <button class="btn btn-secondary" id="go-menu-btn" style="margin-top:8px;">🏠 菜单</button>
+                    `;
+                gameoverOverlay.classList.remove('hidden');
+                targetDiv.style.display = 'none';
+
+                document.getElementById('restart-level-btn').addEventListener('click', () => {
+                    gameoverOverlay.classList.add('hidden');
+                    resetGameState();
+                });
+                document.getElementById('go-menu-btn').addEventListener('click', goToMenu);
+            }
+        }
+
+        function goToMenu() {
+            gameoverOverlay.classList.add('hidden');
+            gameRunning = false;
+            isEndlessMode = false;
+            modeLabel.style.display = 'none';
+            showMenu();
+        }
+
+        // ============================================================
+        //  12. 菜单 & 关卡选择
+        // ============================================================
+        function renderLevelGrid() {
+            const unlocked = getUnlockedForCurrent();
+            const endlessUnlocked = getEndlessUnlocked();
+            levelGrid.innerHTML = '';
+
+            LEVELS.forEach((lv, idx) => {
+                const num = idx + 1;
+                const btn = document.createElement('div');
+                btn.className = 'level-btn';
+
+                // 第6关：只有通关第5关后才显示（unlocked >= 6）
+                if (lv.isHidden && unlocked < 6) {
+                    btn.classList.add('hidden-level');
+                    btn.textContent = '???';
+                    levelGrid.appendChild(btn);
+                    return;
+                }
+
+                const isUnlocked = num <= unlocked;
+                const isCurrent = num === unlocked && num <= TOTAL_LEVELS;
+
+                if (isUnlocked) btn.classList.add('unlocked');
+                if (isCurrent) btn.classList.add('current');
+                if (!isUnlocked) btn.classList.add('locked');
+
+                if (lv.isHidden) {
+                    btn.classList.add('red-level');
+                }
+
+                btn.textContent = lv.isHidden ? '⭐ 直面' : `第${num}关`;
+
+                if (isUnlocked) {
+                    btn.addEventListener('click', () => {
+                        if (gameRunning) return;
+                        if (lv.isHidden) {
+                            if (!confirm('⚠️ 该关卡中不会出现道具\n\n确定要开始吗？')) {
+                                return;
+                            }
+                        }
+                        menuOverlay.classList.add('hidden');
+                        loadLevel(num);
+                    });
+                }
+                levelGrid.appendChild(btn);
+            });
+
+            // 无尽模式：只有通关第6关后才显示
+            if (endlessUnlocked) {
+                const endlessBtn = document.createElement('div');
+                endlessBtn.className = 'level-btn unlocked endless-btn';
+                endlessBtn.textContent = '♾️ 无尽模式';
+                endlessBtn.addEventListener('click', () => {
+                    menuOverlay.classList.add('hidden');
+                    loadEndlessMode();
+                });
+                levelGrid.appendChild(endlessBtn);
+            }
+
+            // 进度显示：前5关 + 第6关（如果解锁）
+            const displayTotal = unlocked >= 6 ? 6 : 5;
+            menuProgress.textContent = `${Math.min(unlocked, 6)}/${displayTotal}`;
+        }
+
+        function showMenu() {
+            const data = loadPlayerData(playerId);
+            bestScore = data.best;
+            const unlocked = data.unlocked;
+            menuPlayerName.textContent = playerId || '—';
+            menuBestScore.textContent = bestScore;
+            renderLevelGrid();
+            menuOverlay.classList.remove('hidden');
+            nameOverlay.classList.add('hidden');
+            gameoverOverlay.classList.add('hidden');
+            targetDiv.style.display = 'none';
+            modeLabel.style.display = 'none';
+        }
+
+        function showNameInput() {
+            nameOverlay.classList.remove('hidden');
+            menuOverlay.classList.add('hidden');
+            gameoverOverlay.classList.add('hidden');
+            playerIdInput.value = '';
+            playerIdInput.focus();
+        }
+
+        // ============================================================
+        //  13. 事件绑定
+        // ============================================================
+        nameConfirmBtn.addEventListener('click', () => {
+            const id = playerIdInput.value.trim();
+            if (!id) { alert('请输入 ID'); return; }
+            playerId = id;
+            showMenu();
+        });
+        playerIdInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') nameConfirmBtn.click();
+        });
+        menuChangeNameBtn.addEventListener('click', showNameInput);
+
+        function handleJump(e) {
+            e.preventDefault();
+            if (!gameRunning || gameOver || gameWin) return;
+            bird.vy = bird.lift;
+        }
+        canvas.addEventListener('mousedown', handleJump);
+        canvas.addEventListener('touchstart', handleJump, { passive: false });
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') { e.preventDefault();
+                handleJump(e); }
+        });
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            if (gameRunning && !gameOver) {
+                bird.x = W() * 0.2;
+                bird.y = Math.min(H() * 0.8, Math.max(H() * 0.2, bird.y));
+                getDynamicSizes();
+                bird.radius = birdRadius;
+            }
+        });
+
+        // ============================================================
+        //  14. 游戏循环
+        // ============================================================
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // ============================================================
+        //  15. 启动
+        // ============================================================
+        showNameInput();
+        loop();
+        console.log('吉他手大冒险！| 6关 | 薯条5分 | 第6关只显示薯条 | 无尽模式');
+        console.log('📁 图片: bird.png, fries.png, bread.png, guitar.png, sayo.png');
+    </script>
+</body>
+</html>
